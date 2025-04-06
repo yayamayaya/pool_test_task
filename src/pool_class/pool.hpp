@@ -61,6 +61,8 @@ namespace pooling
         
         std::vector<pool *> children;
         
+        bool side_link;
+        
         counter_t get_tree_size();
         
         pool *return_root();    
@@ -71,8 +73,7 @@ namespace pooling
         
         ~pool();
         
-        public:    
-        bool side_link;
+    public:    
         static pool *add_new_pool();
         
         static void delete_all_pools();
