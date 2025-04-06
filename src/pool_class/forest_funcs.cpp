@@ -3,7 +3,7 @@
 
 using namespace pooling;
 
-pool_forest::pool_tree &pool_forest::return_tree_info(pool *root)
+pool::forest::tree_data &pool::forest::return_tree_info(pool *root)
 {
     if (root->parent)
         return return_tree_info(root->parent);
@@ -15,17 +15,17 @@ pool_forest::pool_tree &pool_forest::return_tree_info(pool *root)
     throw "tree is not in the forest";
 }
 
-void pool_forest::add_new_tree(pool *new_tree)
+void pool::forest::add_new_tree(pool *new_tree)
 {
-    forest_map[new_tree] = pool_tree();
+    forest_map[new_tree] = tree_data();
 }
 
-void pool_forest::rm_tree(pool *rmv_tree)
+void pool::forest::rm_tree(pool *rmv_tree)
 {
     forest_map.erase(rmv_tree);
 }
 
-pool *pool_forest::convert_tree_to_a_subtree(pool *tree_node)
+pool *pool::forest::convert_tree_to_a_subtree(pool *tree_node)
 {
     assert(tree_node);
 
@@ -33,7 +33,7 @@ pool *pool_forest::convert_tree_to_a_subtree(pool *tree_node)
     pool *prev_node   = nullptr;
     pool *curr_node   = tree_node;
 
-    while(1)
+    while (1)
     {
         node_parent = curr_node->parent;
         curr_node->parent = prev_node;
@@ -55,3 +55,31 @@ pool *pool_forest::convert_tree_to_a_subtree(pool *tree_node)
     return tree_node;
 }
 
+void pool::forest::add_tree_link(pool *f_tree, pool *s_tree)
+{
+    linked_trees.push_back(std::pair<pool *, pool *> (f_tree, s_tree));
+}
+
+counter_t pool::forest::find_tree_link(pool *tree)
+{
+    for (counter_t i = 0; i < linked_trees.size(); i++)
+        if (linked_trees[i].first == tree || linked_trees[i].second == tree)
+            return i;
+    
+    return LINK_NOT_FOUND;
+}
+
+counter_t pool::forest::find_tree_link(pool *f, pool *s)
+{
+    if (!f->side_link || !s->side_link)
+        return LINK_NOT_FOUND;
+
+    for (counter_t i = 0; i < linked_trees.size(); i++)
+    {
+        if (linked_trees[i].first == f || linked_trees[i].first == s)
+            if (linked_trees[i].second == f || linked_trees[i].second == s)
+                return i;
+    }
+    
+    return LINK_NOT_FOUND;
+}
