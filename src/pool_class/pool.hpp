@@ -13,13 +13,12 @@ using counter_t = int;
 
 namespace pooling
 {
+    enum Errors
+    {
+        EXCEPTION_THROW = 81,
+    };
+
     class pool;
-
-    // extern std::vector<pool *>active_pools;
-
-    // extern std::unordered_map<pool *, counter_t> tree_sizes;
-
-    // extern counter_t counter;
 
     class pool_forest
     {
@@ -47,39 +46,33 @@ namespace pooling
 
         static void delete_tree(pool *dying_tree);
 
-        static pool_tree &return_tree_info(pool *root);
+        static void rm_tree(pool *rmv_tree);
 
+        static pool_tree &return_tree_info(pool *root);
     };
 
     class pool
     {
         // volume_t water_volume;
-
+        
         friend pool_forest;
-
+        
         pool *parent;
-    
+        
         std::vector<pool *> children;
-    
-        bool side_link;
-    
-        // static inline const pool_ind_t root = -1;
-
-        // static inline const counter_t big_tree_if = 100; 
-
+        
         counter_t get_tree_size();
-
+        
         pool *return_root();    
-
+        
         void delete_child(pool *ch);
         
-        //pool(): parent(nullptr), children(), side_link(false) {pool_forest::add_new_tree(this);}
-
         pool(): parent(nullptr), children(), side_link(false) {}
-
-    public:    
+        
         ~pool();
-
+        
+        public:    
+        bool side_link;
         static pool *add_new_pool();
         
         static void delete_all_pools();

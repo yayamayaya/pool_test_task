@@ -6,34 +6,6 @@ using namespace pooling;
 
 std::unordered_map <pool *, pool_forest::pool_tree> pool_forest::forest_map;
 
-// std::vector<pool *> pooling::active_pools;
-
-// std::unordered_map<pool *, int> pooling::tree_sizes;
-
-// static counter_t counter = 0;
-
-/*pool_ind_t pool::return_this_index()
-{
-    if (children.size() != 0)
-        return active_pools[children[0]]->parent;
-    
-    for (auto i = 0; i < active_pools.size(); i++)
-        if (active_pools[i] == this)
-            return i;
-
-    _LOG[ERROR] << "> Allocated pool wasn't found, error" << END_;
-    return -1;
-}*/
-
-/*pool_ind_t pool::root_index()
-{
-    pool_ind_t index = parent;
-    while (index != root)
-        index = active_pools[index]->parent;
-
-    return return_this_index();
-}*/
-
 pool *pool::return_root()
 {
     if (parent == nullptr)
@@ -48,23 +20,41 @@ pool *pool::return_root()
 
 counter_t pool::get_tree_size()
 {
-    return pool_forest::return_tree_info(return_root()).tree_size;
-}
-
-void pool::add_water(volume_t vol)
-{
-    pool *root = return_root();
-
-    pool_forest::pool_tree &tree_info = pool_forest::return_tree_info(root);
-
-    tree_info.volume += vol / tree_info.tree_size;
+    try
+    {
+        return pool_forest::return_tree_info(this).tree_size;
+    }
+    catch(const char *msg)
+    {
+        _LOG[ERROR] << "Exception throw: " << msg << END_;
+        return -1;
+    }
 }
 
 volume_t pool::show_water_volume()
 {
-    pool *root = return_root();
+    try
+    {
+        return pool_forest::return_tree_info(this).volume;
+    }
+    catch(const char *msg)
+    {
+        _LOG[ERROR] << "Exception throw: " << msg << END_;
+        return -1;
+    }
+}
 
-    return pool_forest::return_tree_info(root).volume;
+void pool::add_water(volume_t vol)
+{
+    try
+    {
+        pool_forest::pool_tree &tree_info = pool_forest::return_tree_info(this);
+        tree_info.volume += vol / tree_info.tree_size;
+    }
+    catch(const char *msg)
+    {
+        _LOG[ERROR] << "Exception throw: " << msg << END_;
+    }
 }
 
 pool *pool::add_new_pool()
@@ -79,14 +69,12 @@ pool *pool::add_new_pool()
 pool::~pool() 
 {
     for (int i = 0; i < children.size(); i++)
-        children[i]->~pool();
-
-    // delete this;
+        delete children[i];
 }
 
 void pool::delete_all_pools()
 {
-    _LOG << pool_forest::forest_map.size() << " <- size!!" << END_;
+    // _LOG << pool_forest::forest_map.size() << " <- size!!" << END_;
 
     for (auto it = pool_forest::forest_map.begin(); it != pool_forest::forest_map.end(); it++)
         delete it->first;
@@ -98,13 +86,35 @@ ret_t pool::connect_pool(pool *conn_pool)
 {
     assert(conn_pool);
 
-    auto it = pool_forest::forest_map.find(conn_pool);
-    if (it != pool_forest::forest_map.end())
+    if (this->return_root() == conn_pool->return_root())
     {
-        _LOG << "> tree root is found\n" << END_;
+        this->side_link = 1;
+        conn_pool->side_link = 1;
 
         return 0;
     }
+
+    try
+    {
+        pool_forest::pool_tree conn_info = pool_forest::return_tree_info(conn_pool);
+        pool_forest::pool_tree &data       = pool_forest::return_tree_info(this);
+
+        counter_t this_size = data.tree_size;
+        data.tree_size += conn_info.tree_size;
+    
+        data.volume = (data.volume * this_size + conn_info.volume * conn_info.tree_size) / data.tree_size;
+    }
+    catch(const char *msg)
+    {
+        _LOG[ERROR] << "Exception throw: " << msg << END_;
+        return EXCEPTION_THROW;
+    }
+
+    pool *transformed_pool = pool_forest::convert_tree_to_a_subtree(conn_pool);
+    transformed_pool->parent = this;
+    children.push_back(transformed_pool);
+
+    return 0;
 }
 
 void pool::delete_child(pool *ch)
@@ -113,33 +123,3 @@ void pool::delete_child(pool *ch)
         if (*it == ch)
             children.erase(it);
 }
-
-// ret_t pool::add_pool_connection(pool_ind_t conn_ind)
-// {
-//     if (root_index() == active_pools[conn_ind]->root_index())
-//     {
-//         side_link                          = true;
-//         active_pools[conn_ind]->side_link  = true;
-
-//         _LOG << "> Side bounding" << END_;
-
-//         return 1;
-//     }
-
-//     if (parent == root)
-//     {
-//         parent = conn_ind;
-
-//         // active_pools[conn_ind]->children.push_back();
-//     }
-
-//     if (parent == root || active_pools[conn_ind]->parent == root)
-//     {
-//         _LOG << "> root's bounding" << END_;
-
-//         return 0;
-//     }
-
-//     _LOG << "> tree's bounding" << END_;
-//     return 0;
-// }
