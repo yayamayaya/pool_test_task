@@ -54,8 +54,8 @@ void big_data_testing::connect_pools(size_t K)
 
     for (size_t i = 0; i < K; i++)
     {
-        unsigned long pool_number1 = give_random(pools.size());
-        unsigned long pool_number2 = give_random(pools.size());
+        pool_ind_t pool_number1 = give_random(pools.size());
+        pool_ind_t pool_number2 = give_random(pools.size());
 
         pools[pool_number1]->connect_pool(pools[pool_number2]);
     }
@@ -67,12 +67,18 @@ void big_data_testing::break_connections(size_t M)
 {
     timer t;
 
-    for (size_t i = 0; i < M; i++)
+    for (size_t i = 0; i < M;)
     {
-        unsigned long pool_number1 = give_random(pools.size());
-        unsigned long pool_number2 = give_random(pools.size());
+        pool_ind_t pool_number  = give_random(pools.size());
+        counter_t  children_num = pools[pool_number]->children_number();
 
-        pools[pool_number1]->disconnect_pool(pools[pool_number2]);
+        if (children_num)
+        {
+            pool_ind_t child_pool = give_random(children_num);
+            pools[pool_number]->disconnect_pool(child_pool);
+
+            i++;
+        }
     }
 
     std::cout << "> " << M << " pools were tried to be disconnected in";
