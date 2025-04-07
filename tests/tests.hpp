@@ -68,7 +68,7 @@ TEST(connecting_pools, connect_again)
     pool *p2 = pool::create_new_pool();
 
     EXPECT_EQ(p1->connect_pool(p2), 0);
-    EXPECT_EQ(p1->connect_pool(p2), Messages::ALREADY_CONNECT);
+    EXPECT_EQ(p1->connect_pool(p2), ALREADY_CONNECT);
 
     pool::delete_all_pools();
 }
@@ -110,15 +110,13 @@ TEST(disconnecting_pools, miss_disconnect)
     pool *p1 = pool::create_new_pool();
     pool *p2 = pool::create_new_pool();
 
-    EXPECT_EQ(p1->disconnect_pool(p2), Messages::CHILD_NOT_FOUND);
+    EXPECT_EQ(p1->disconnect_pool(p2), NO_CONNECTION);
 
     pool::delete_all_pools();
 }
 
 TEST(disconnecting_pools, link_reconnect)
 {
-    // logger::logger_init("log.log");
-
     pool *p1 = pool::create_new_pool();
     pool *p2 = pool::create_new_pool();
     pool *p3 = pool::create_new_pool();
