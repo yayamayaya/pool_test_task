@@ -27,6 +27,15 @@ TEST(creating_pools, add_water_test)
     pool::delete_all_pools();
 }
 
+TEST(exception_test, negative_water_add)
+{
+    pool *p = pool::create_new_pool();
+    
+    p->add_water(-1);
+
+    EXPECT_NO_THROW(p->show_water_volume());
+}
+
 TEST(connecting_pools, connect_single_pools)
 {
     pool *p = pool::create_new_pool();
@@ -158,6 +167,5 @@ TEST(disconnecting_pools, link_disconnect)
 
     pool::delete_all_pools();
 }
-
 
 #endif
