@@ -44,7 +44,7 @@ namespace pooling
 
         pool *return_root();    
 
-        pool *convert_tree_to_a_subtree();
+        pool *convert_tree_to_subtree();
         
         bool delete_child(pool *ch);
                 

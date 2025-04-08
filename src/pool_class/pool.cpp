@@ -1,4 +1,5 @@
 #include <cassert>
+#include <exception>
 #include "forest_funcs.hpp"
 #include "pool.hpp"
 
@@ -30,30 +31,25 @@ pool::~pool()
 
 void pool::add_water(volume_t vol)
 {
-    try
+    tree_data &tree_info = return_tree_info();
+
+    volume_t new_vol = vol / tree_info.tree_size;
+    if (tree_info.volume + new_vol < 0)
     {
-        tree_data &tree_info = return_tree_info();
-        tree_info.volume += vol / tree_info.tree_size;
+        tree_info.volume = 0;
+        return;
     }
-    catch(...)
-    {
-        _LOG << "Exception throw, couldn't add water for node: " << this << END_;
-    }
+
+    tree_info.volume += new_vol;
 }
 
 volume_t pool::show_water_volume()
 {
-    //throw range_error
+    volume_t vol = return_tree_info().volume;
+    if (vol < 0.0)
+        throw std::range_error("water volume become negative");
 
-    try
-    {
-        return return_tree_info().volume;
-    }
-    catch(...)
-    {
-        _LOG << "Exception throw, couldn't find water volume data for node: " << this << END_;
-        return NO_WATER_FOUND;
-    }
+    return vol;
 }
 
 tree_data &pool::return_tree_info()
@@ -65,8 +61,7 @@ tree_data &pool::return_tree_info()
     if (it != forest::forest_map.end())
         return forest::forest_map[this];
 
-    //Throw logic_error
-    throw "tree is not in the forest";
+    throw std::logic_error("couldn't find tree info for this pool");
 }
 
 pool *pool::return_root()
@@ -99,36 +94,28 @@ ret_t pool::connect_pool(pool *conn_pool)
         return 0;
     }
 
-    try
-    {
-        tree_data conn_info   = conn_pool->return_tree_info();
-        tree_data &data       = this     ->return_tree_info();
+    tree_data conn_info   = conn_pool->return_tree_info();
+    tree_data &data       = this     ->return_tree_info();
 
-        counter_t this_size = data.tree_size;
-        data.tree_size += conn_info.tree_size;
+    counter_t this_size = data.tree_size;
+    data.tree_size += conn_info.tree_size;
+
+    data.volume = (data.volume * this_size + conn_info.volume * conn_info.tree_size) / data.tree_size;
     
-        data.volume = (data.volume * this_size + conn_info.volume * conn_info.tree_size) / data.tree_size;
-    }
-    catch(...)
-    {
-        _LOG << "Exception throw, couldn't connect " << conn_pool << " to " << this << END_;
-        return EXCEPTION_THROW;
-    }
-    
-    pool *transformed_pool = conn_pool->convert_tree_to_a_subtree();
+    pool *transformed_pool = conn_pool->convert_tree_to_subtree();
     transformed_pool->parent = this;
     children.push_back(transformed_pool);
     
     return 0;
 }
 
-pool *pool::convert_tree_to_a_subtree()
+pool *pool::convert_tree_to_subtree()
 {
     pool *node_parent = nullptr;
     pool *prev_node   = nullptr;
     pool *curr_node   = this;
 
-    while (1)
+    while (true)
     {
         node_parent = curr_node->parent;
         curr_node->parent = prev_node;
@@ -184,25 +171,16 @@ ret_t pool::disconnect_pool(pool *dis_pool)
     if (dis_pool->side_link)
         return reconnect_to_side_link(dis_pool);
 
+    tree_data &data = return_tree_info();
+        
     counter_t subtree_size = dis_pool->count_subtree_size();
+    data.tree_size -= subtree_size;
 
-    try
-    {
-        tree_data &data = return_tree_info();
+    forest::forest_map[dis_pool] = {data.volume, subtree_size};
 
-        data.tree_size -= subtree_size;
+    dis_pool->parent = nullptr;
 
-        forest::forest_map[dis_pool] = {data.volume, subtree_size};
-
-        dis_pool->parent = nullptr;
-
-        return 0;
-    }
-    catch(...)
-    {
-        _LOG << "Exception throw, couldn't disconnect " << dis_pool << " from " << this << END_;
-        return EXCEPTION_THROW;
-    }
+    return 0;
 }
 
 bool pool::delete_child(pool *ch)
