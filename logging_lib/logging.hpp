@@ -2,7 +2,7 @@
 #define LOGGING_HEADER
 
 #ifndef LOGG_DIR
-#define LOGG_DIR "./logging"
+#define LOGG_DIR "./logs/"
 #endif
 
 #ifdef WIN32
@@ -51,14 +51,37 @@ private:
         static void open_log_file(const std::string file_name);
         
         logging_unit& operator [](Message_types t);
+
+        logging_unit& operator << (std::string data);
         
         template<typename T>
-        logging_unit& operator <<(const T data);
+        logging_unit& operator <<(const T data)
+        {
+            if (!log_file.is_open())
+                return *this;
+        
+            std::lock_guard<std::mutex> mu(logger::print_lock);
+        
+            if (new_message)
+            {   
+                time_t t;
+                time(&t);
+        
+                log_file << sq_brack_o << strtok(ctime(&t), "\n") \
+                    << sq_brack_c << msg_format << msg_start;
+        
+                new_message = false;
+            }
+        
+            log_file << data;
+        
+            return *this;
+        }
 
         static inline bool new_message              = true;
     };
 
-    static inline const std::string logging_dir = "./logging/";
+    static inline const std::string logging_dir = LOGG_DIR;
 
     static inline const std::string info_msg    = "[INFO]   ";
 
@@ -96,29 +119,5 @@ public:
 
     static inline const std::string endl = "\n";
 };
-
-template <typename T>
-logger::logging_unit& logger::logging_unit::operator <<(const T data)
-{
-    if (!log_file.is_open())
-        return *this;
-
-    std::lock_guard<std::mutex> mu(logger::print_lock);
-
-    if (new_message)
-    {   
-        time_t t;
-        time(&t);
-
-        log_file << sq_brack_o << strtok(ctime(&t), "\n") \
-            << sq_brack_c << msg_format << msg_start;
-
-        new_message = false;
-    }
-
-    log_file << data;
-
-    return *this;
-}
 
 #endif

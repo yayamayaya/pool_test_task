@@ -24,8 +24,7 @@ logger::logging_unit& logger::logging_unit::operator [](Message_types t)
     return *this;
 }
 
-template<>
-logger::logging_unit& logger::logging_unit::operator << <std::string>(std::string data)
+logger::logging_unit& logger::logging_unit::operator << (std::string data)
 {
     if (!log_file.is_open())
         return *this;
