@@ -1,19 +1,9 @@
 #include <cassert>
-#include "pool.hpp"
+#include "forest_funcs.hpp"
 
-using namespace pooling;
+std::unordered_map <pool *, tree_data> forest::forest_map;
 
-forest::tree_data &forest::return_tree_info(pool *root)
-{
-    if (root->parent)
-        return return_tree_info(root->parent);
-
-    auto it = forest_map.find(root);
-    if (it != forest_map.end())
-        return forest_map[root];
-
-    throw "tree is not in the forest";
-}
+std::vector<std::pair<pool *, pool *>> forest::linked_trees;
 
 void forest::add_new_tree(pool *new_tree)
 {
@@ -23,36 +13,6 @@ void forest::add_new_tree(pool *new_tree)
 void forest::rm_tree(pool *rmv_tree)
 {
     forest_map.erase(rmv_tree);
-}
-
-pool *forest::convert_tree_to_a_subtree(pool *tree_node)
-{
-    assert(tree_node);
-
-    pool *node_parent = nullptr;
-    pool *prev_node   = nullptr;
-    pool *curr_node   = tree_node;
-
-    while (1)
-    {
-        node_parent = curr_node->parent;
-        curr_node->parent = prev_node;
-
-        if (prev_node)
-            curr_node->delete_child(prev_node);
-        
-        if (!node_parent)
-            break;
-
-        curr_node->children.push_back(node_parent);
-        
-        prev_node = curr_node;
-        curr_node = node_parent;
-    }
-
-    rm_tree(curr_node);
-
-    return tree_node;
 }
 
 void forest::add_tree_link(pool *f_tree, pool *s_tree)
@@ -71,7 +31,7 @@ counter_t forest::find_tree_link(pool *tree)
 
 counter_t forest::find_tree_link(pool *f, pool *s)
 {
-    if (!f->side_link || !s->side_link)
+    if (!f->check_for_side_links() || !s->check_for_side_links())
         return LINK_NOT_FOUND;
 
     for (counter_t i = 0; i < linked_trees.size(); i++)

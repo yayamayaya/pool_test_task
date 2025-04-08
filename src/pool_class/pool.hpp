@@ -2,17 +2,19 @@
 #define POOL_CLASS_H
 
 #include <vector>
-#include <unordered_map>
 #include "logging.hpp"
+
+struct tree_data;
 
 namespace pooling
 {
-
     constexpr ret_t EXCEPTION_THROW = 11;
     
     constexpr ret_t ALREADY_CONNECT = 12;
 
     constexpr ret_t NO_CONNECTION   = 13;
+
+    constexpr ret_t WRONG_CHILD_IND = 14;
 
     constexpr ret_t LINK_NOT_FOUND  = -1;
 
@@ -24,46 +26,8 @@ namespace pooling
     
     using counter_t  = int;
 
-    class pool;
-
-    class forest
-    {
-        struct tree_data
-        {
-            tree_data(): volume(0), tree_size(1) {}
-            
-            tree_data(volume_t vol, counter_t size): volume(vol), tree_size(size) {}
-            
-            volume_t   volume;
-            
-            counter_t  tree_size;
-        };
-        
-        friend pool;
-
-        static pool *convert_tree_to_a_subtree(pool *tree_node);
-
-        static std::unordered_map<pool *, tree_data> forest_map;
-
-        static void add_new_tree(pool *new_tree);
-        
-        static void rm_tree(pool *rmv_tree);
-        
-        static tree_data &return_tree_info(pool *root);
-
-        static std::vector<std::pair<pool *, pool *>> linked_trees;
-
-        static void add_tree_link(pool *f_tree, pool *s_tree);
-
-        static counter_t find_tree_link(pool *tree);
-
-        static counter_t find_tree_link(pool *f, pool *s);
-    };
-
     class pool
-    {
-        friend forest;
-        
+    {        
         pool *parent;
         
         std::vector<pool *> children;
@@ -75,8 +39,12 @@ namespace pooling
         ~pool();
                 
         counter_t count_subtree_size();
-        
+
+        tree_data &return_tree_info();
+
         pool *return_root();    
+
+        pool *convert_tree_to_a_subtree();
         
         bool delete_child(pool *ch);
                 
@@ -85,9 +53,11 @@ namespace pooling
         static void connect_linked_trees(pool *first, pool *second);
         
         ret_t check_for_connection(pool *s);
-        
+
     public:
         counter_t children_number();
+    
+        bool check_for_side_links();
 
         static pool *create_new_pool();
         

@@ -1,15 +1,72 @@
-#include "pool.hpp"
 #include <cassert>
+#include "forest_funcs.hpp"
+#include "pool.hpp"
 
 using namespace pooling;
 
-std::unordered_map <pool *, forest::tree_data> forest::forest_map;
-
-std::vector<std::pair<pool *, pool *>> forest::linked_trees;
-
-counter_t pool::children_number()
+pool *pool::create_new_pool()
 {
-    return children.size();
+    pool *new_pool = new pool;
+
+    forest::add_new_tree(new_pool);
+
+    return new_pool;
+}
+
+void pool::delete_all_pools()
+{
+    for (auto it = forest::forest_map.begin(); it != forest::forest_map.end(); it++)
+        delete it->first;
+
+    forest::forest_map.clear();
+    forest::linked_trees.clear();
+}
+
+pool::~pool() 
+{
+    for (int i = 0; i < children.size(); i++)
+        delete children[i];
+}
+
+void pool::add_water(volume_t vol)
+{
+    try
+    {
+        tree_data &tree_info = return_tree_info();
+        tree_info.volume += vol / tree_info.tree_size;
+    }
+    catch(...)
+    {
+        _LOG << "Exception throw, couldn't add water for node: " << this << END_;
+    }
+}
+
+volume_t pool::show_water_volume()
+{
+    //throw range_error
+
+    try
+    {
+        return return_tree_info().volume;
+    }
+    catch(...)
+    {
+        _LOG << "Exception throw, couldn't find water volume data for node: " << this << END_;
+        return NO_WATER_FOUND;
+    }
+}
+
+tree_data &pool::return_tree_info()
+{
+    if (parent)
+        return parent->return_tree_info();
+
+    auto it = forest::forest_map.find(this);
+    if (it != forest::forest_map.end())
+        return forest::forest_map[this];
+
+    //Throw logic_error
+    throw "tree is not in the forest";
 }
 
 pool *pool::return_root()
@@ -22,66 +79,6 @@ pool *pool::return_root()
         root = root->parent;
 
     return root;
-}
-
-counter_t pool::count_subtree_size()
-{
-    counter_t cnt = 1;
-
-    for (int i = 0; i < children.size(); i++)
-        cnt += children[i]->count_subtree_size();
-    
-    return cnt;
-}
-
-volume_t pool::show_water_volume()
-{
-    try
-    {
-        return forest::return_tree_info(this).volume;
-    }
-    catch(...)
-    {
-        _LOG << "Exception throw, couldn't find water volume data for node: " << this << END_;
-        return NO_WATER_FOUND;
-    }
-}
-
-void pool::add_water(volume_t vol)
-{
-    try
-    {
-        forest::tree_data &tree_info = forest::return_tree_info(this);
-        tree_info.volume += vol / tree_info.tree_size;
-    }
-    catch(...)
-    {
-        _LOG << "Exception throw, couldn't add water for node: " << this << END_;
-    }
-}
-
-pool *pool::create_new_pool()
-{
-    pool *new_pool = new pool;
-
-    forest::add_new_tree(new_pool);
-
-    return new_pool;
-}
-
-pool::~pool() 
-{
-    for (int i = 0; i < children.size(); i++)
-        delete children[i];
-}
-
-void pool::delete_all_pools()
-{
-    for (auto it = forest::forest_map.begin(); it != forest::forest_map.end(); it++)
-        delete it->first;
-
-    forest::forest_map.clear();
-    forest::linked_trees.clear();
 }
 
 ret_t pool::connect_pool(pool *conn_pool)
@@ -104,8 +101,8 @@ ret_t pool::connect_pool(pool *conn_pool)
 
     try
     {
-        forest::tree_data conn_info   = forest::return_tree_info(conn_pool);
-        forest::tree_data &data       = forest::return_tree_info(this);
+        tree_data conn_info   = conn_pool->return_tree_info();
+        tree_data &data       = this     ->return_tree_info();
 
         counter_t this_size = data.tree_size;
         data.tree_size += conn_info.tree_size;
@@ -117,17 +114,52 @@ ret_t pool::connect_pool(pool *conn_pool)
         _LOG << "Exception throw, couldn't connect " << conn_pool << " to " << this << END_;
         return EXCEPTION_THROW;
     }
-
-    pool *transformed_pool = forest::convert_tree_to_a_subtree(conn_pool);
+    
+    pool *transformed_pool = conn_pool->convert_tree_to_a_subtree();
     transformed_pool->parent = this;
     children.push_back(transformed_pool);
-
+    
     return 0;
 }
 
-ret_t pool::disconnect_pool(pool_ind_t child_ind)
+pool *pool::convert_tree_to_a_subtree()
 {
-    return disconnect_pool(children[child_ind]);
+    pool *node_parent = nullptr;
+    pool *prev_node   = nullptr;
+    pool *curr_node   = this;
+
+    while (1)
+    {
+        node_parent = curr_node->parent;
+        curr_node->parent = prev_node;
+
+        if (prev_node)
+            curr_node->delete_child(prev_node);
+        
+        if (!node_parent)
+            break;
+
+        curr_node->children.push_back(node_parent);
+        
+        prev_node = curr_node;
+        curr_node = node_parent;
+    }
+
+    forest::rm_tree(curr_node);
+
+    return this;
+}
+
+ret_t pool::check_for_connection(pool *node)
+{
+    if 
+    (
+        (this->parent == node || node->parent == this)
+        || (forest::find_tree_link(this, node) != LINK_NOT_FOUND)
+    )
+    return ALREADY_CONNECT;
+
+    return 0;
 }
 
 ret_t pool::disconnect_pool(pool *dis_pool)
@@ -156,7 +188,7 @@ ret_t pool::disconnect_pool(pool *dis_pool)
 
     try
     {
-        forest::tree_data &data       = forest::return_tree_info(this);
+        tree_data &data = return_tree_info();
 
         data.tree_size -= subtree_size;
 
@@ -173,16 +205,24 @@ ret_t pool::disconnect_pool(pool *dis_pool)
     }
 }
 
-ret_t pool::check_for_connection(pool *node)
+bool pool::delete_child(pool *ch)
 {
-    if 
-    (
-        (this->parent == node || node->parent == this)
-        || (forest::find_tree_link(this, node) != LINK_NOT_FOUND)
-    )
-    return ALREADY_CONNECT;
+    for (int i = 0; i < children.size(); i++)
+        if (children[i] == ch)
+        {
+            children.erase(children.begin() + i);
+            return false;
+        }
 
-    return 0;
+    return true;
+}
+
+ret_t pool::disconnect_pool(pool_ind_t child_ind)
+{
+    if (child_ind > children.size())
+        return WRONG_CHILD_IND;
+
+    return disconnect_pool(children[child_ind]);
 }
 
 ret_t pool::reconnect_to_side_link(pool *side_pool)
@@ -209,6 +249,16 @@ ret_t pool::reconnect_to_side_link(pool *side_pool)
     return 0;
 }
 
+counter_t pool::count_subtree_size()
+{
+    counter_t cnt = 1;
+
+    for (int i = 0; i < children.size(); i++)
+        cnt += children[i]->count_subtree_size();
+    
+    return cnt;
+}
+
 void pool::connect_linked_trees(pool *conn, pool *to)
 {
     conn->parent = to;
@@ -216,14 +266,12 @@ void pool::connect_linked_trees(pool *conn, pool *to)
     to->children.push_back(conn);
 }
 
-bool pool::delete_child(pool *ch)
+counter_t pool::children_number()
 {
-    for (int i = 0; i < children.size(); i++)
-        if (children[i] == ch)
-        {
-            children.erase(children.begin() + i);
-            return false;
-        }
+    return children.size();
+}
 
-    return true;
+bool pool::check_for_side_links()
+{
+    return side_link;
 }
